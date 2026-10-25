@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTasks } from "@/hooks/useTasks";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopNav } from "@/components/layout/TopNav";
@@ -23,15 +23,38 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 export default function CalendarPage() {
   const { tasks, loading, createTask } = useTasks();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  // Gunakan null pada awal render untuk menghindari unstable value saat build prerender
+  const [currentMonth, setCurrentMonth] = useState<Date | null>(null);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCurrentMonth(new Date());
+  }, []);
 
   const handleCreate = async (data: CreateTaskDTO) => {
     await createTask(data);
   };
 
+  if (!currentMonth) {
+    return (
+      <div className="flex h-screen overflow-hidden">
+        <Sidebar />
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+          <TopNav onOpenCreateModal={() => setIsModalOpen(true)} />
+          <main className="p-6 flex items-center justify-center">
+            <p className="dark:text-gray-400">Loading calendar...</p>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  // Navigasi Bulan
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
 
+  // Kalkulasi Grid Hari Kalender
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
   const startDate = startOfWeek(monthStart);
@@ -93,7 +116,6 @@ export default function CalendarPage() {
               {/* Grid Tanggal */}
               <div className="grid grid-cols-7 auto-rows-fr bg-gray-200 dark:bg-gray-700 gap-[1px]">
                 {days.map((day, idx) => {
-                  // Cari tugas yang memiliki dueDate pada tanggal ini
                   const dayTasks = tasks.filter((task) => {
                     if (!task.dueDate) return false;
                     return isSameDay(new Date(task.dueDate), day);
